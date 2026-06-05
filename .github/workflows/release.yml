@@ -8,8 +8,8 @@
 #   4. Creates a GitHub Release with those notes
 #
 # HOW TO TRIGGER:
-#   git tag v1.2.0
-#   git push origin v1.2.0
+#   git tag v1.0.1
+#   git push origin v1.0.1
 # =============================================================
 
 name: Create Release Notes
