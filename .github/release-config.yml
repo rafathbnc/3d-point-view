@@ -1,0 +1,61 @@
+# =============================================================
+# release-config.yml (LOCAL / MANUAL release notes config)
+#
+# This file is NOT a GitHub Actions workflow.
+# It is used by scripts/generate-release-notes.sh to
+# customise how release notes are generated on your machine.
+#
+# HOW TO USE:
+#   bash scripts/generate-release-notes.sh              # latest tag vs previous
+#   bash scripts/generate-release-notes.sh v1.2.0       # specific tag vs previous
+#   bash scripts/generate-release-notes.sh v1.2.0 v1.1.0  # between two tags
+#   WRITE_FILE=true bash scripts/generate-release-notes.sh  # save to file
+# =============================================================
+
+# Project info
+project:
+  name: "NemiVision"
+  repo: "Sathishkumar/nemivision"   # update to your actual GitHub repo path
+  maintainer: "BNC Motors team"
+
+# Commit categories — maps commit prefixes to section headings
+categories:
+  - title: "✨ Features"
+    prefixes:
+      - "feat"
+  - title: "🐛 Bug Fixes"
+    prefixes:
+      - "fix"
+  - title: "🔧 Infrastructure & Maintenance"
+    prefixes:
+      - "chore"
+      - "ci"
+      - "build"
+      - "infra"
+      - "refactor"
+  - title: "📚 Documentation"
+    prefixes:
+      - "docs"
+  - title: "🔬 Other Changes"
+    prefixes:
+      - "*"   # Everything else
+
+# Output settings
+output:
+  format: "markdown"
+  include_compare_link: true
+  include_commit_hash: false
+  include_date: true
+  group_by_category: true
+
+# Contributors — always listed in release notes regardless of git history
+contributors:
+  - name: "Mohammed Rafath"
+    email: "soft.develop@bncmotors.in"
+  - name: "Mohammed Rafath M"
+    email: "rafath@bncmotors.in"
+
+# Tag pattern
+tags:
+  pattern: "v*"
+  sort: "version"

@@ -1,0 +1,100 @@
+# =============================================================
+# Automated Release Notes - GitHub Actions
+#
+# HOW IT WORKS:
+#   1. You push a tag like v1.2.0
+#   2. This workflow runs automatically
+#   3. It generates release notes from your commits
+#   4. Creates a GitHub Release with those notes
+#
+# HOW TO TRIGGER:
+#   git tag v1.2.0
+#   git push origin v1.2.0
+# =============================================================
+
+name: Create Release Notes
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on any tag starting with 'v' (e.g., v1.2.0)
+
+permissions:
+  contents: write  # Needed to create releases
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for commit comparison
+
+      - name: Get previous tag
+        id: prev_tag
+        run: |
+          PREV_TAG=$(git tag --sort=-v:refname | head -2 | tail -1)
+          echo "tag=${PREV_TAG}" >> $GITHUB_OUTPUT
+          echo "Previous tag: ${PREV_TAG}"
+
+      - name: Generate release notes from commits
+        id: notes
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          PREV_TAG=${{ steps.prev_tag.outputs.tag }}
+
+          echo "Generating notes for ${PREV_TAG}..${TAG_NAME}"
+
+          # Categorize commits
+          FEATURES=$(git log --pretty=format:"- %s" "${PREV_TAG}..${TAG_NAME}" --grep="^feat" -i)
+          FIXES=$(git log --pretty=format:"- %s" "${PREV_TAG}..${TAG_NAME}" --grep="^fix" -i)
+          OTHER=$(git log --pretty=format:"- %s" "${PREV_TAG}..${TAG_NAME}" --grep="^chore\|^refactor\|^ci\|^build" -i)
+
+          # Always include the core team; append any additional committers from git log
+          CORE_CONTRIBUTORS="- Mohammed Rafath <soft.develop@bncmotors.in>
+- Mohammed Rafath M <rafath@bncmotors.in>"
+          GIT_CONTRIBUTORS=$(git log --pretty=format:"- %aN <%aE>" "${PREV_TAG}..${TAG_NAME}" | sort -u | grep -vE "soft\.develop|rafath@bnc" || true)
+          if [ -n "$GIT_CONTRIBUTORS" ]; then
+            CONTRIBUTORS="${CORE_CONTRIBUTORS}
+${GIT_CONTRIBUTORS}"
+          else
+            CONTRIBUTORS="${CORE_CONTRIBUTORS}"
+          fi
+
+          # Build the body using a heredoc
+          {
+            echo "BODY<<ENDOFBODY"
+            echo "## What's Changed"
+            echo ""
+            if [ -n "$FEATURES" ]; then
+              echo "### ✨ Features"
+              echo "$FEATURES"
+              echo ""
+            fi
+            if [ -n "$FIXES" ]; then
+              echo "### 🐛 Bug Fixes"
+              echo "$FIXES"
+              echo ""
+            fi
+            if [ -n "$OTHER" ]; then
+              echo "### 🔧 Other"
+              echo "$OTHER"
+              echo ""
+            fi
+            echo "### 👥 Contributors"
+            echo "$CONTRIBUTORS"
+            echo ""
+            echo "---"
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${TAG_NAME}"
+            echo "ENDOFBODY"
+          } >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "NemiVision ${{ github.ref_name }}"
+          body: ${{ steps.notes.outputs.BODY }}
+          draft: false
+          prerelease: false
