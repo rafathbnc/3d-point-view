@@ -34,9 +34,9 @@ jobs:
       - name: Get previous tag
         id: prev_tag
         run: |
-          PREV_TAG=$(git tag --sort=-v:refname | head -2 | tail -1)
+          PREV_TAG=$(git tag --sort=-v:refname | grep -v "^${GITHUB_REF#refs/tags/}$" | head -1)
           echo "tag=${PREV_TAG}" >> $GITHUB_OUTPUT
-          echo "Previous tag: ${PREV_TAG}"
+          echo "Previous tag: ${PREV_TAG:-none}"
 
       - name: Generate release notes from commits
         id: notes
@@ -44,17 +44,24 @@ jobs:
           TAG_NAME=${GITHUB_REF#refs/tags/}
           PREV_TAG=${{ steps.prev_tag.outputs.tag }}
 
-          echo "Generating notes for ${PREV_TAG}..${TAG_NAME}"
+          # If no previous tag, use all commits up to this tag
+          if [ -z "$PREV_TAG" ]; then
+            RANGE="${TAG_NAME}"
+            echo "First release — showing all commits up to ${TAG_NAME}"
+          else
+            RANGE="${PREV_TAG}..${TAG_NAME}"
+            echo "Generating notes for ${RANGE}"
+          fi
 
           # Categorize commits
-          FEATURES=$(git log --pretty=format:"- %s" "${PREV_TAG}..${TAG_NAME}" --grep="^feat" -i)
-          FIXES=$(git log --pretty=format:"- %s" "${PREV_TAG}..${TAG_NAME}" --grep="^fix" -i)
-          OTHER=$(git log --pretty=format:"- %s" "${PREV_TAG}..${TAG_NAME}" --grep="^chore\|^refactor\|^ci\|^build" -i)
+          FEATURES=$(git log --pretty=format:"- %s" ${RANGE} --grep="^feat" -i)
+          FIXES=$(git log --pretty=format:"- %s" ${RANGE} --grep="^fix" -i)
+          OTHER=$(git log --pretty=format:"- %s" ${RANGE} --grep="^chore\|^refactor\|^ci\|^build" -i)
 
           # Always include the core team; append any additional committers from git log
           CORE_CONTRIBUTORS="- Mohammed Rafath <soft.develop@bncmotors.in>
 - Mohammed Rafath M <rafath@bncmotors.in>"
-          GIT_CONTRIBUTORS=$(git log --pretty=format:"- %aN <%aE>" "${PREV_TAG}..${TAG_NAME}" | sort -u | grep -vE "soft\.develop|rafath@bnc" || true)
+          GIT_CONTRIBUTORS=$(git log --pretty=format:"- %aN <%aE>" ${RANGE} | sort -u | grep -vE "soft\.develop|rafath@bnc" || true)
           if [ -n "$GIT_CONTRIBUTORS" ]; then
             CONTRIBUTORS="${CORE_CONTRIBUTORS}
 ${GIT_CONTRIBUTORS}"
@@ -86,7 +93,11 @@ ${GIT_CONTRIBUTORS}"
             echo "$CONTRIBUTORS"
             echo ""
             echo "---"
-            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${TAG_NAME}"
+            if [ -n "$PREV_TAG" ]; then
+              echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${TAG_NAME}"
+            else
+              echo "**Full Changelog**: https://github.com/${{ github.repository }}/commits/${TAG_NAME}"
+            fi
             echo "ENDOFBODY"
           } >> $GITHUB_OUTPUT
 
