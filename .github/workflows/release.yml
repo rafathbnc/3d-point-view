@@ -69,9 +69,8 @@ ${GIT_CONTRIBUTORS}"
             CONTRIBUTORS="${CORE_CONTRIBUTORS}"
           fi
 
-          # Build the body using a heredoc
+          # Build the release notes body and write to file
           {
-            echo "BODY<<ENDOFBODY"
             echo "## What's Changed"
             echo ""
             if [ -n "$FEATURES" ]; then
@@ -98,14 +97,13 @@ ${GIT_CONTRIBUTORS}"
             else
               echo "**Full Changelog**: https://github.com/${{ github.repository }}/commits/${TAG_NAME}"
             fi
-            echo "ENDOFBODY"
-          } >> $GITHUB_OUTPUT
+          } > release_notes.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: "NemiVision ${{ github.ref_name }}"
-          body: ${{ steps.notes.outputs.BODY }}
+          body_path: release_notes.md
           draft: false
           prerelease: false
